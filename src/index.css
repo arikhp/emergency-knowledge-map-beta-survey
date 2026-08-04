@@ -1,0 +1,47 @@
+:root {
+  --teal-dark: #0b5e78;
+  --teal: #12708d;
+  --blue-light: #56c6ea;
+  --orange: #f2841e;
+  --orange-dark: #d96c0a;
+  --bg: #f4f7f9;
+  --card-bg: #ffffff;
+  --border: #dde6ea;
+  --text: #1c2b33;
+  --text-muted: #52646d;
+  --error: #c62828;
+
+  font: 16px/1.55 'Segoe UI', Arial, sans-serif;
+  color-scheme: light;
+  color: var(--text);
+  background: var(--bg);
+  font-synthesis: none;
+  text-rendering: optimizeLegibility;
+  -webkit-font-smoothing: antialiased;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+}
+
+h1,
+h2,
+h3 {
+  font-weight: 600;
+  color: var(--text);
+}
+
+p {
+  margin: 0 0 0.6em;
+}
+
+input,
+textarea,
+select {
+  font: inherit;
+  color: inherit;
+}
