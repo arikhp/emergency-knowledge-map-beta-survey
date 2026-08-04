@@ -9,10 +9,12 @@ React + TypeScript beta-test questionnaire for "מפת הידע לחירום 2.0
   Likert-scale statements + NPS, 9 open questions, and a summary section.
 - **PDF export** at any point (persistent "ייצוא ל-PDF" button, and again on
   the post-submit success screen) — produces a paginated Hebrew PDF of the
-  current answers.
+  current answers, downloaded locally.
 - Submissions are saved to a Google Sheet via a small Apps Script backend
   (see [`google-apps-script/README.md`](./google-apps-script/README.md) for
-  the one-time setup) — no self-hosted server needed.
+  the one-time setup) — no self-hosted server needed. On submit, a PDF copy
+  of the same answers is also generated and saved straight to a Drive
+  folder automatically (no download dialog for this one).
 
 ## Local development
 

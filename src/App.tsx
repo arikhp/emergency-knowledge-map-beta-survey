@@ -12,7 +12,7 @@ import { SummarySection } from './components/SummarySection';
 import { ReviewView } from './ReviewView';
 import { flattenForm } from './lib/flatten';
 import { submitResponse } from './lib/submitResponse';
-import { exportElementToPdf } from './lib/exportPdf';
+import { exportElementToPdf, elementToPdfBase64 } from './lib/exportPdf';
 
 const today = new Date().toISOString().slice(0, 10);
 
@@ -31,6 +31,11 @@ const defaultValues: FormValues = {
 };
 
 type SubmitState = 'idle' | 'submitting' | 'done' | 'error-no-endpoint' | 'error-network';
+
+function pdfFilename(participantName: string): string {
+  const name = (participantName || 'משתתף').trim();
+  return `שאלון-בטא-${name}-${today}.pdf`;
+}
 
 function App() {
   const {
@@ -53,7 +58,21 @@ function App() {
   const onSubmit = async (values: FormValues) => {
     setSubmitState('submitting');
     const flat = flattenForm(values);
-    const result = await submitResponse(flat);
+
+    // Build the same PDF the manual export button produces, and send it
+    // along so the backend saves a copy to Drive — no download dialog here,
+    // this happens silently as part of submission.
+    let pdf: { base64: string; filename: string } | undefined;
+    if (reviewRef.current) {
+      try {
+        const base64 = await elementToPdfBase64(reviewRef.current);
+        pdf = { base64, filename: pdfFilename(values.participantName) };
+      } catch {
+        // If PDF generation fails, still submit the form data — don't block on it.
+      }
+    }
+
+    const result = await submitResponse(flat, pdf);
     if (result.skipped) {
       setSubmitState('error-no-endpoint');
     } else if (result.ok) {
@@ -67,8 +86,8 @@ function App() {
     if (!reviewRef.current) return;
     setPdfBusy(true);
     try {
-      const name = getValues('participantName') || 'משתתף';
-      await exportElementToPdf(reviewRef.current, `שאלון-בטא-${name}.pdf`);
+      const name = getValues('participantName');
+      await exportElementToPdf(reviewRef.current, pdfFilename(name));
     } finally {
       setPdfBusy(false);
     }

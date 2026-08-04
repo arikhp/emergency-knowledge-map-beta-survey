@@ -28,7 +28,16 @@ Every submission appends a row to the sheet's active tab; the header row is
 created and kept in sync automatically the first time data comes in — no
 manual column setup needed.
 
+Each submission also saves a PDF copy of the answers into a Drive folder
+named **"תשובות שאלון בטא - PDF"** (created automatically on first use) —
+this happens silently as part of hitting "שליחת השאלון", no download dialog.
+Because this needs Drive access (not just Sheets), the deployment now
+requests an extra permission — see the re-authorization step below.
+
 **If you ever need to redeploy the script** (e.g. after editing `Code.gs`):
 Deploy → Manage deployments → edit (pencil icon) → New version → Deploy. The
 `/exec` URL stays the same across versions, so you won't need to update the
-`.env`/secret again.
+`.env`/secret again. If the new version requests a new permission (like the
+Drive access added for PDF saving), you'll be prompted to **Authorize
+access** again during that redeploy — same one-click approval as the first
+time, since it's still your own script.
