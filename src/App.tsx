@@ -20,7 +20,6 @@ const defaultValues: FormValues = {
   participantName: '',
   participantRole: '',
   participantDate: today,
-  userType: '',
   background: [],
   frequency: '',
   tasks: Object.fromEntries(tasks.map((t) => [t.id, { ease: '', completion: '', notes: '' }])),

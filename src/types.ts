@@ -8,7 +8,6 @@ export interface FormValues {
   participantName: string;
   participantRole: string;
   participantDate: string;
-  userType: string;
   background: string[];
   frequency: string;
   tasks: Record<string, TaskAnswer>;

@@ -8,7 +8,6 @@ import {
   openQuestions,
   statements,
   tasks,
-  userTypeOptions,
 } from './data/questionnaire';
 import type { FormValues } from './types';
 
@@ -47,8 +46,6 @@ export const ReviewView = forwardRef<HTMLDivElement, Props>(function ReviewView(
           <dd>{displayValue(values.participantRole)}</dd>
           <dt>תאריך ביצוע הבדיקה</dt>
           <dd>{displayValue(values.participantDate)}</dd>
-          <dt>סוג המשתמש במערכת</dt>
-          <dd>{labelFor(userTypeOptions, values.userType)}</dd>
           <dt>רקע מקצועי וניסיון</dt>
           <dd>
             {values.background && values.background.length > 0

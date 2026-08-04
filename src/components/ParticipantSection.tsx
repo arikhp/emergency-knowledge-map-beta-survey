@@ -1,7 +1,6 @@
 import type { FieldErrors, UseFormRegister } from 'react-hook-form';
-import { backgroundOptions, userTypeOptions } from '../data/questionnaire';
+import { backgroundOptions } from '../data/questionnaire';
 import type { FormValues } from '../types';
-import { RadioGroup } from './RadioGroup';
 import { CheckboxGroup } from './CheckboxGroup';
 
 interface Props {
@@ -38,19 +37,6 @@ export function ParticipantSection({ register, errors }: Props) {
           תאריך ביצוע הבדיקה
         </label>
         <input id="participantDate" type="date" {...register('participantDate')} />
-      </div>
-
-      <div className="field">
-        <label className="field-label">
-          סוג המשתמש במערכת <span className="required-mark">*</span>
-        </label>
-        <RadioGroup
-          name="userType"
-          register={register}
-          options={userTypeOptions}
-          required
-          error={errors.userType}
-        />
       </div>
 
       <div className="field">

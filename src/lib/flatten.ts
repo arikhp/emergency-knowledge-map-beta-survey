@@ -6,7 +6,6 @@ export function flattenForm(values: FormValues): Record<string, string> {
     participantName: values.participantName,
     participantRole: values.participantRole,
     participantDate: values.participantDate,
-    userType: values.userType,
     background: (values.background ?? []).join(', '),
     frequency: values.frequency,
     nps: values.nps,
