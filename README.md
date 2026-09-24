@@ -40,3 +40,49 @@ npm run preview   # serve the production build locally
 Static build, deployable to GitHub Pages (see `.github/workflows/deploy.yml`)
 or any static host. The `SHEET_ENDPOINT` GitHub Actions secret must be set
 for the deployed build to actually save submissions.
+
+## QA & load testing
+
+### Survey bots (Playwright), runs on every PR
+
+```bash
+npx playwright install chromium webkit   # once
+npm run test:e2e                          # all bots, all browsers
+npm run test:e2e:ui                       # interactive runner
+```
+
+The suite builds the app against a fake endpoint (`https://sheet.test/exec`)
+and intercepts every submission, so it never touches a real Sheet. Any
+request to `script.google.com` fails the test. Specs live in `e2e/`:
+
+| Spec | What it checks |
+|---|---|
+| `bots.spec.ts` | 5 bots with different seeded answers fill in and submit in parallel; every field arrives; the attached PDF is under 5 MB |
+| `validation.spec.ts` | Required fields block submission, and nothing is sent |
+| `edge-input.spec.ts` | Long Hebrew text, emoji, quotes, HTML, mixed RTL/LTR text arrive unchanged |
+| `network-error.spec.ts` | A failed submission shows the error banner and keeps the answers |
+| `pdf-export.spec.ts` | The export button downloads a valid PDF under 5 MB |
+| `a11y-rtl.spec.ts` | The page is RTL Hebrew; no serious or critical axe violations (except known, listed ones) |
+
+Each spec runs in desktop Chrome, mobile (Pixel 7) and Safari (WebKit).
+The **QA** workflow (`.github/workflows/qa.yml`) runs lint and the whole
+suite on every pull request and on every push to `main`, and uploads the HTML report as an
+artifact.
+
+Set `BASE_URL` to run the same bots against a deployed site instead of a
+local build.
+
+### Load test (k6), manual, against the test Sheet only
+
+Needs the separate test backend. See the "Test backend" section in
+[`google-apps-script/README.md`](./google-apps-script/README.md).
+
+- **From GitHub:** Actions → **Load test (test Sheet)** → Run workflow. It
+  first makes one real browser submission (`e2e/live.spec.ts`), then ramps
+  k6 up to the chosen number of concurrent submitters (default 30).
+- **Locally:** `k6 run -e ENDPOINT=<test /exec URL> -e VUS=5 load/submit.js`
+
+It passes if fewer than 2% of requests fail and 95% of submissions finish
+within 15 s. Afterwards, check that the number of `LOADTEST-<run id>-*` rows in the test
+Sheet equals `iterations` in the k6 summary. That count is the real check that
+nothing was dropped, because the browser app can't read Apps Script's response.

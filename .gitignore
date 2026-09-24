@@ -29,3 +29,8 @@ dist-ssr
 *.sw?
 .vercel
 .env*
+
+# QA
+playwright-report/
+test-results/
+load/results/

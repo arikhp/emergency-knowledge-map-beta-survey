@@ -41,3 +41,21 @@ Deploy → Manage deployments → edit (pencil icon) → New version → Deploy.
 Drive access added for PDF saving), you'll be prompted to **Authorize
 access** again during that redeploy — same one-click approval as the first
 time, since it's still your own script.
+
+## Test backend (for the load test and live smoke test)
+
+Automated tests must never write to the real beta Sheet, so they use a
+separate copy of this backend. One-time setup:
+
+1. Create a second blank spreadsheet, e.g. **"TEST — תשובות שאלון בטא"**.
+2. **Extensions → Apps Script**, paste in [`Code.gs`](./Code.gs), and change
+   the first line to a separate Drive folder:
+   `var PDF_FOLDER_NAME = 'TEST - תשובות שאלון בטא - PDF';`
+3. Deploy it as a web app exactly as in step 4 above, and copy its `/exec` URL.
+4. In GitHub → repo **Settings → Secrets and variables → Actions**, add it as
+   **`TEST_SHEET_ENDPOINT`**. It must be a different URL from
+   `SHEET_ENDPOINT`; the load-test workflow refuses to run if they match.
+
+Rows written by tests are easy to spot and delete: the live smoke test uses
+participant name `LIVE-SMOKE-<run id>`, and the load test uses
+`LOADTEST-<run id>-<user>-<iteration>`.
