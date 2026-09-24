@@ -1,0 +1,65 @@
+name: Live check (test Sheet + Drive)
+
+# A bot fills in the survey in a real browser and submits it to the TEST
+# Apps Script backend, then checks that the row reached the test Sheet with
+# the right answers and the PDF reached the test Drive folder, and deletes
+# both. Needs the TEST_SHEET_ENDPOINT and TEST_VERIFY_TOKEN secrets; until
+# they exist it skips with a warning.
+on:
+  push:
+    branches: [main]
+  schedule:
+    - cron: '0 5 * * *' # daily, 08:00 Israel time
+  workflow_dispatch:
+
+concurrency:
+  group: live-smoke
+  cancel-in-progress: false
+
+jobs:
+  live:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    env:
+      TEST_ENDPOINT: ${{ secrets.TEST_SHEET_ENDPOINT }}
+      PROD_ENDPOINT: ${{ secrets.SHEET_ENDPOINT }}
+      VERIFY_TOKEN: ${{ secrets.TEST_VERIFY_TOKEN }}
+    steps:
+      - name: Check the test backend is configured
+        id: guard
+        run: |
+          if [ -z "$TEST_ENDPOINT" ] || [ -z "$VERIFY_TOKEN" ]; then
+            echo "::warning::TEST_SHEET_ENDPOINT / TEST_VERIFY_TOKEN not set yet, skipping (see google-apps-script/README.md)."
+            echo "run=false" >> "$GITHUB_OUTPUT"; exit 0
+          fi
+          if [ -n "$PROD_ENDPOINT" ] && [ "$TEST_ENDPOINT" = "$PROD_ENDPOINT" ]; then
+            echo "::error::TEST_SHEET_ENDPOINT is the production endpoint. Refusing."; exit 1
+          fi
+          echo "run=true" >> "$GITHUB_OUTPUT"
+
+      - uses: actions/checkout@v4
+        if: steps.guard.outputs.run == 'true'
+      - uses: actions/setup-node@v4
+        if: steps.guard.outputs.run == 'true'
+        with:
+          node-version: 22
+          cache: npm
+      - if: steps.guard.outputs.run == 'true'
+        run: npm ci
+      - if: steps.guard.outputs.run == 'true'
+        run: npx playwright install --with-deps chromium
+      - name: Submit, verify in Sheet + Drive, clean up
+        if: steps.guard.outputs.run == 'true'
+        run: npx playwright test --project=desktop-chromium
+        env:
+          LIVE: '1'
+          LIVE_ENDPOINT: ${{ env.TEST_ENDPOINT }}
+          LIVE_VERIFY_TOKEN: ${{ env.VERIFY_TOKEN }}
+      - uses: actions/upload-artifact@v4
+        if: ${{ !cancelled() && steps.guard.outputs.run == 'true' }}
+        with:
+          name: live-check-report
+          path: |
+            playwright-report/
+            test-results/
+          retention-days: 14

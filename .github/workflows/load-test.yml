@@ -1,0 +1,93 @@
+name: Load test (test Sheet)
+
+# Manual only: this writes real rows and PDFs to the TEST Sheet/Drive folder
+# and spends Apps Script quota. Requires the TEST_SHEET_ENDPOINT secret.
+on:
+  workflow_dispatch:
+    inputs:
+      participants:
+        description: How many participants submit (each once). Expected total is 30
+        default: '30'
+      at_once:
+        description: How many submit at the same time (1 = one at a time, which is the expected use; max 30)
+        default: '1'
+
+jobs:
+  load-test:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    env:
+      TEST_ENDPOINT: ${{ secrets.TEST_SHEET_ENDPOINT }}
+      PROD_ENDPOINT: ${{ secrets.SHEET_ENDPOINT }}
+    steps:
+      - name: Check the target is the test backend
+        run: |
+          if [ -z "$TEST_ENDPOINT" ]; then
+            echo "::error::TEST_SHEET_ENDPOINT secret is not set (see google-apps-script/README.md)."; exit 1
+          fi
+          if [ -z "${{ secrets.TEST_VERIFY_TOKEN }}" ]; then
+            echo "::error::TEST_VERIFY_TOKEN secret is not set (see google-apps-script/README.md)."; exit 1
+          fi
+          if [ -n "$PROD_ENDPOINT" ] && [ "$TEST_ENDPOINT" = "$PROD_ENDPOINT" ]; then
+            echo "::error::TEST_SHEET_ENDPOINT is the production endpoint. Refusing."; exit 1
+          fi
+
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - run: npx playwright install --with-deps chromium
+
+      # One real browser submission first: proves the full path (form → PDF → Sheet → Drive) works,
+      # checks the row and PDF through the test backend, then deletes them.
+      - name: Live smoke submission
+        run: npx playwright test --project=desktop-chromium
+        env:
+          LIVE: '1'
+          LIVE_ENDPOINT: ${{ secrets.TEST_SHEET_ENDPOINT }}
+          LIVE_VERIFY_TOKEN: ${{ secrets.TEST_VERIFY_TOKEN }}
+
+      - uses: grafana/setup-k6-action@v1
+      - name: Run k6
+        run: |
+          mkdir -p load/results
+          k6 run \
+            -e ENDPOINT="$TEST_ENDPOINT" \
+            -e PROD_ENDPOINT="$PROD_ENDPOINT" \
+            -e RUN_ID="${{ github.run_id }}" \
+            -e PARTICIPANTS="${{ inputs.participants }}" \
+            -e AT_ONCE="${{ inputs.at_once }}" \
+            load/submit.js
+
+      # Counts what actually reached the test Sheet and Drive, compares it with k6, then deletes it.
+      # Runs even if k6's thresholds failed, so test rows never pile up.
+      - name: Check every submission arrived, then clean up
+        if: ${{ !cancelled() && hashFiles('load/results/summary.json') != '' }}
+        run: node load/verify.mjs "$TEST_ENDPOINT" "$VERIFY_TOKEN" "${{ github.run_id }}" | tee load/results/verify.txt
+        env:
+          VERIFY_TOKEN: ${{ secrets.TEST_VERIFY_TOKEN }}
+
+      - name: Job summary
+        if: ${{ !cancelled() }}
+        run: |
+          {
+            echo "### Load test run ${{ github.run_id }}"
+            echo '#### Did every submission arrive?'
+            echo '```'
+            cat load/results/verify.txt 2>/dev/null || echo "The arrival check did not run"
+            echo '```'
+            echo '#### k6'
+            echo '```'
+            cat load/results/summary.txt 2>/dev/null || echo "k6 produced no summary"
+            echo '```'
+          } >> "$GITHUB_STEP_SUMMARY"
+
+      - uses: actions/upload-artifact@v4
+        if: ${{ !cancelled() }}
+        with:
+          name: load-test-results
+          path: |
+            load/results/
+            playwright-report/

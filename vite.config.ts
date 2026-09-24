@@ -2,7 +2,10 @@ import { defineConfig } from 'vite'
 import react from '@vitejs/plugin-react'
 
 // base matches the GitHub Pages project-site path (repo name); harmless for local dev.
+// Vercel serves from the domain root, so use '/' there (VERCEL=1 is set during Vercel builds).
 export default defineConfig({
-  base: '/emergency-knowledge-map-beta-survey/',
+  base: process.env.VERCEL ? '/' : '/emergency-knowledge-map-beta-survey/',
   plugins: [react()],
+  // Build time, shown in the footer as "last updated". Every deploy rebuilds, so this is the deploy time.
+  define: { 'import.meta.env.VITE_BUILD_TIME': JSON.stringify(new Date().toISOString()) },
 })

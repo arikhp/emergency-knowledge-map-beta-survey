@@ -1,0 +1,43 @@
+name: QA (Vercel preview)
+
+# Runs the survey bots against each successful Vercel *preview* deployment.
+# Requires, in Vercel: VITE_SHEET_ENDPOINT=https://sheet.test/exec for the
+# Preview environment (so the mocked backend catches every submission), and
+# "Protection Bypass for Automation" saved as the
+# VERCEL_AUTOMATION_BYPASS_SECRET GitHub secret.
+on:
+  deployment_status:
+
+concurrency:
+  group: qa-preview-${{ github.event.deployment.sha }}
+  cancel-in-progress: true
+
+jobs:
+  survey-bots:
+    if: >-
+      github.event.deployment_status.state == 'success' &&
+      startsWith(github.event.deployment.environment, 'Preview')
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.deployment.sha }}
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - run: npx playwright install --with-deps chromium webkit
+      - run: npx playwright test
+        env:
+          BASE_URL: ${{ github.event.deployment_status.target_url }}/
+          VERCEL_AUTOMATION_BYPASS_SECRET: ${{ secrets.VERCEL_AUTOMATION_BYPASS_SECRET }}
+      - uses: actions/upload-artifact@v4
+        if: ${{ !cancelled() }}
+        with:
+          name: playwright-report-preview
+          path: |
+            playwright-report/
+            test-results/
+          retention-days: 14
