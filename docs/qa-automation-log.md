@@ -148,9 +148,14 @@ Add automated QA to the beta survey:
    found in Drive, and both were cleaned up (0 rows or files left). Without a
    password or with a wrong one, requests are refused, and non-test names are refused.
    Optionally, redeploy the real script with the new `Code.gs` (no `VERIFY_TOKEN` there).
-2. **Vercel preview setup** *(manual)*: set Preview-only
-   `VITE_SHEET_ENDPOINT=https://sheet.test/exec`, enable Protection Bypass for
-   Automation, and add the GitHub secret `VERCEL_AUTOMATION_BYPASS_SECRET`.
+2. ~~**Vercel preview setup**~~ **Done 2026-09-24** through the browser. The
+   Vercel project had no env vars before, so none of Production's settings
+   changed. Added `VITE_SHEET_ENDPOINT=https://sheet.test/exec` (Config, **Preview
+   only**). Added a Protection Bypass for Automation secret (note "GitHub
+   Actions QA bots") and stored it as the GitHub secret
+   `VERCEL_AUTOMATION_BYPASS_SECRET`. Note: Vercel *Production* builds have no
+   `VITE_SHEET_ENDPOINT`, so a Production deploy on Vercel would show the
+   "no endpoint" warning. The live site is GitHub Pages, which uses `SHEET_ENDPOINT`.
 3. **Run the load test:** locally with
    `k6 run -e ENDPOINT=<TEST url> -e VUS=5 load/submit.js`, then `VUS=30`.
    Or from Actions → *Load test (test Sheet)*: a `workflow_dispatch` workflow
