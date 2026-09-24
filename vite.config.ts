@@ -6,4 +6,6 @@ import react from '@vitejs/plugin-react'
 export default defineConfig({
   base: process.env.VERCEL ? '/' : '/emergency-knowledge-map-beta-survey/',
   plugins: [react()],
+  // Build time, shown in the footer as "last updated". Every deploy rebuilds, so this is the deploy time.
+  define: { 'import.meta.env.VITE_BUILD_TIME': JSON.stringify(new Date().toISOString()) },
 })

@@ -8,6 +8,11 @@ test('page is right-to-left Hebrew', async ({ page }) => {
   await expect(page.getByRole('heading', { level: 1 })).toBeVisible();
 });
 
+test('footer shows when the site was last updated', async ({ page }) => {
+  await page.goto('./');
+  await expect(page.locator('.last-updated')).toHaveText(/^עודכן לאחרונה: \d{1,2}\.\d{1,2}\.\d{4}/);
+});
+
 // Known, accepted issues: reported as annotations instead of failing CI.
 // Add entries as { rule: 'color-contrast', target: '.btn-primary' }.
 const KNOWN_ISSUES: { rule: string; target: string }[] = [];

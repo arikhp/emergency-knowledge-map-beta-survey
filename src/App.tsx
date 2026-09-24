@@ -16,6 +16,13 @@ import { exportElementToPdf, elementToPdfBase64 } from './lib/exportPdf';
 
 const today = new Date().toISOString().slice(0, 10);
 
+// Set at build time in vite.config.ts; each deploy rebuilds, so it's the last deploy time.
+const LAST_UPDATED = new Date(import.meta.env.VITE_BUILD_TIME as string).toLocaleString('he-IL', {
+  timeZone: 'Asia/Jerusalem',
+  dateStyle: 'short',
+  timeStyle: 'short',
+});
+
 const defaultValues: FormValues = {
   participantName: '',
   participantRole: '',
@@ -203,6 +210,7 @@ function App() {
 
       <footer className="page-footer">
         <p>{meta.thankYou}</p>
+        <p className="last-updated">עודכן לאחרונה: {LAST_UPDATED}</p>
       </footer>
     </div>
   );
