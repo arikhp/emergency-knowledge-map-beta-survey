@@ -27,10 +27,21 @@ export interface FindResult {
 export function testBackend(request: APIRequestContext, endpoint: string, token: string) {
   async function call<T>(action: string, prefix: string): Promise<T> {
     // Apps Script answers with a redirect to script.googleusercontent.com; request follows it.
-    const res = await request.get(endpoint, { params: { token, action, prefix }, timeout: 60_000 });
-    const body = await res.json();
-    if (!body.ok) throw new Error(`Test backend refused "${action}": ${body.error}`);
-    return body as T;
+    // Now and then that redirect returns a Google HTML error page instead of JSON; retry those.
+    for (let attempt = 1; ; attempt++) {
+      const res = await request.get(endpoint, { params: { token, action, prefix }, timeout: 60_000 });
+      const text = await res.text();
+      let body;
+      try {
+        body = JSON.parse(text);
+      } catch {
+        if (attempt >= 4) throw new Error(`Test backend gave no JSON for "${action}" (status ${res.status()})`);
+        await new Promise((r) => setTimeout(r, 3_000 * attempt));
+        continue;
+      }
+      if (!body.ok) throw new Error(`Test backend refused "${action}": ${body.error}`);
+      return body as T;
+    }
   }
   return {
     find: (prefix: string) => call<FindResult>('find', prefix),
