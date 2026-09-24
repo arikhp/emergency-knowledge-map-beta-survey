@@ -85,28 +85,49 @@ Add automated QA to the beta survey:
 
 ## Known issues found by the tests
 
-- **Low contrast on the submit button:** white text on brand orange `#f2841e` is
-  about 2.6:1 (WCAG AA needs 4.5:1). It's listed in `KNOWN_ISSUES` in
-  `e2e/a11y-rtl.spec.ts`, so it's reported without failing CI. **Design decision
-  pending:** darken the orange, or keep it.
+- ~~**Low contrast on the submit button:** white text on brand orange `#f2841e`
+  is about 2.6:1 (WCAG AA needs 4.5:1).~~ **Fixed 2026-09-24:** a new token
+  `--orange-strong: #b35900` (4.83:1) is used for `.btn-primary` and
+  `.task-number`, and `--orange-dark` is now `#9a4a00` (6.26:1), used for
+  hover and the required-field `*`. The bright `--orange` stays for borders
+  and outlines. `KNOWN_ISSUES` is now empty, so CI fails if contrast regresses.
+
+## Session 2 (2026-09-24, second laptop)
+
+- Setup reproduced on a new machine: 36/36 passed, lint clean.
+- Contrast fix (above). The a11y and PDF export specs pass, and the button
+  was checked visually.
+- **Vercel preview bots:** new `.github/workflows/qa-preview.yml` runs on
+  `deployment_status` (successful Preview deployments only), using
+  `BASE_URL=<preview url>`. `playwright.config.ts` sends
+  `x-vercel-protection-bypass` when `VERCEL_AUTOMATION_BYPASS_SECRET` is set.
+  Checked locally against a root-base (`VERCEL=1`) build: 36/36 passed.
+  This needs 2 Vercel settings (README → "Survey bots on Vercel previews").
+- k6 isn't installed on this laptop yet: `brew install k6` needs
+  `sudo xcodebuild -license accept` first.
 
 ## Git state
 
-- `vercel-base-path` has 3 commits not in `main`, including `.gitignore` for `.vercel` and `.env*`.
-- `feature/qa-automation` branches off `vercel-base-path` and adds the QA commits.
-- Nothing has been merged and no PR is open, so the live site is unchanged.
+- `feature/qa-automation` contains all of `main`, plus the 2
+  `vercel-base-path` commits (Vercel root base, and `.gitignore` for
+  `.vercel`/`.env*`), plus the QA commits. Merging it also ships the Vercel changes.
+- Nothing has been merged, so the live site is unchanged.
 
 ## Next steps
 
-1. **Create the test backend:** follow "Test backend" in
+1. **Create the test backend** *(manual)*: follow "Test backend" in
    `google-apps-script/README.md`, then add the GitHub secret `TEST_SHEET_ENDPOINT`.
-2. **Run the load test:** Actions → *Load test (test Sheet)*, first with
-   `vus=5`, then `30`. Check that the `LOADTEST-<run id>-*` row count in the test Sheet matches
-   k6 `iterations`, and that the PDFs are in the test Drive folder.
-3. **Decide about the button contrast.**
-4. **Optional later:** run the bots against Vercel preview URLs (`BASE_URL=...`);
-   Vercel deployment protection may need a bypass.
-5. **When ready:** open a PR. Nothing gets merged without explicit approval.
+2. **Vercel preview setup** *(manual)*: set Preview-only
+   `VITE_SHEET_ENDPOINT=https://sheet.test/exec`, enable Protection Bypass for
+   Automation, and add the GitHub secret `VERCEL_AUTOMATION_BYPASS_SECRET`.
+3. **Run the load test:** locally with
+   `k6 run -e ENDPOINT=<TEST url> -e VUS=5 load/submit.js`, then `VUS=30`.
+   Or from Actions → *Load test (test Sheet)*: a `workflow_dispatch` workflow
+   can only be started once it exists on the default branch, so after merge,
+   or with `gh workflow run load-test.yml --ref feature/qa-automation` once
+   it's on `main`. Check that the `LOADTEST-<run id>-*` row count matches
+   k6 `iterations`, and that the PDFs are in the TEST Drive folder. Record the results here.
+4. **PR:** review the CI results, then merge only with explicit approval.
 
 ## Resuming on another machine
 

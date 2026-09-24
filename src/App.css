@@ -287,7 +287,7 @@ textarea {
   width: 28px;
   height: 28px;
   border-radius: 50%;
-  background: var(--orange);
+  background: var(--orange-strong);
   color: #fff;
   font-size: 0.85rem;
   flex-shrink: 0;
@@ -333,7 +333,7 @@ textarea {
 }
 
 .btn-primary {
-  background: var(--orange);
+  background: var(--orange-strong);
   color: #fff;
 }
 

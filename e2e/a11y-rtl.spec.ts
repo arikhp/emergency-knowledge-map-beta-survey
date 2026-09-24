@@ -9,8 +9,8 @@ test('page is right-to-left Hebrew', async ({ page }) => {
 });
 
 // Known, accepted issues: reported as annotations instead of failing CI.
-// White text on the brand orange (#f2841e) is ~2.6:1, below the 4.5:1 minimum.
-const KNOWN_ISSUES = [{ rule: 'color-contrast', target: '.btn-primary' }];
+// Add entries as { rule: 'color-contrast', target: '.btn-primary' }.
+const KNOWN_ISSUES: { rule: string; target: string }[] = [];
 
 test('no serious or critical accessibility violations', async ({ page }) => {
   await page.goto('./');

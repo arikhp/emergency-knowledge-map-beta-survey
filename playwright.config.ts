@@ -12,6 +12,9 @@ if (process.env.LIVE && !process.env.LIVE_ENDPOINT) {
   throw new Error('LIVE=1 needs LIVE_ENDPOINT set to the *test* Apps Script URL.');
 }
 const externalBaseUrl = process.env.BASE_URL;
+// Vercel preview deployments are behind deployment protection; this secret
+// ("Protection Bypass for Automation") lets the bots through.
+const vercelBypass = process.env.VERCEL_AUTOMATION_BYPASS_SECRET;
 
 export default defineConfig({
   testDir: './e2e',
@@ -31,6 +34,9 @@ export default defineConfig({
     baseURL: externalBaseUrl ?? `http://localhost:${PORT}/emergency-knowledge-map-beta-survey/`,
     trace: 'retain-on-failure',
     screenshot: 'only-on-failure',
+    extraHTTPHeaders: vercelBypass
+      ? { 'x-vercel-protection-bypass': vercelBypass, 'x-vercel-set-bypass-cookie': 'true' }
+      : undefined,
   },
   projects: [
     { name: 'desktop-chromium', use: { ...devices['Desktop Chrome'] } },

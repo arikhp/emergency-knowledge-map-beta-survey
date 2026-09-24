@@ -72,6 +72,21 @@ artifact.
 Set `BASE_URL` to run the same bots against a deployed site instead of a
 local build.
 
+### Survey bots on Vercel previews
+
+The **QA (Vercel preview)** workflow (`.github/workflows/qa-preview.yml`)
+runs the same suite against every successful Vercel preview deployment.
+One-time setup:
+
+1. In Vercel → Project → **Settings → Environment Variables**, set
+   `VITE_SHEET_ENDPOINT=https://sheet.test/exec` for the **Preview**
+   environment only. Production keeps the real URL. Previews then post to
+   the fake endpoint that the bots mock, and the `script.google.com` guard
+   still fails any test that would reach a real Sheet.
+2. In Vercel → **Settings → Deployment Protection**, enable **Protection
+   Bypass for Automation**, and save the value as the GitHub Actions
+   secret `VERCEL_AUTOMATION_BYPASS_SECRET`.
+
 ### Load test (k6), manual, against the test Sheet only
 
 Needs the separate test backend. See the "Test backend" section in

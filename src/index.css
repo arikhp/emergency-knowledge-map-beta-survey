@@ -3,7 +3,9 @@
   --teal: #12708d;
   --blue-light: #56c6ea;
   --orange: #f2841e;
-  --orange-dark: #d96c0a;
+  /* White text needs a darker orange to reach WCAG AA 4.5:1 (#f2841e is only 2.6:1). */
+  --orange-strong: #b35900;
+  --orange-dark: #9a4a00;
   --bg: #f4f7f9;
   --card-bg: #ffffff;
   --border: #dde6ea;
