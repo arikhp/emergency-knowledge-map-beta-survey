@@ -87,6 +87,18 @@ One-time setup:
    Bypass for Automation**, and save the value as the GitHub Actions
    secret `VERCEL_AUTOMATION_BYPASS_SECRET`.
 
+### Live check (real Google Sheet + Drive), after every merge and daily
+
+The bots above use a fake backend, so they can't prove Google actually
+saved anything. The **Live check** workflow (`.github/workflows/live-smoke.yml`)
+does: a bot fills in the survey in a real browser and submits it to the
+separate **test** backend. It then asks that backend whether the row arrived
+with the right answers and whether the PDF is in the test Drive folder (a
+real PDF of a sensible size). Finally it deletes the row and trashes the PDF.
+It runs on every push to `main`, daily at 08:00 Israel time, and on demand.
+
+Locally: `LIVE=1 LIVE_ENDPOINT=<test /exec URL> LIVE_VERIFY_TOKEN=<token> npx playwright test --project=desktop-chromium`
+
 ### Load test (k6), manual, against the test Sheet only
 
 Needs the separate test backend. See the "Test backend" section in
@@ -98,6 +110,8 @@ Needs the separate test backend. See the "Test backend" section in
 - **Locally:** `k6 run -e ENDPOINT=<test /exec URL> -e VUS=5 load/submit.js`
 
 It passes if fewer than 2% of requests fail and 95% of submissions finish
-within 15 s. Afterwards, check that the number of `LOADTEST-<run id>-*` rows in the test
-Sheet equals `iterations` in the k6 summary. That count is the real check that
-nothing was dropped, because the browser app can't read Apps Script's response.
+within 15 s. Then `load/verify.mjs` asks the test backend how many
+`LOADTEST-<run id>-*` rows and PDFs actually arrived, and fails if any
+confirmed submission or its PDF is missing. Then it deletes them. The
+counts are shown in the run's summary. Locally:
+`node load/verify.mjs <test /exec URL> <token> <run id>` (add `KEEP=1` to keep the rows).

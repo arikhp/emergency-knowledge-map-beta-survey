@@ -106,6 +106,27 @@ Add automated QA to the beta survey:
 - **Last-updated date in the footer** ("עודכן לאחרונה"): the build time
   comes from `define` in `vite.config.ts` and is shown in Israel time. A
   footer check was added to `a11y-rtl.spec.ts` (now 39 checks).
+- **Real Sheet + Drive verification.** Before this, the live test only
+  checked for the "thank you" screen. That screen shows whenever the upload
+  doesn't crash, and `Code.gs` hid Drive errors, so a broken Drive save would
+  still have passed. Now:
+  - `Code.gs` saves the PDF first, then writes the row with a `pdfFile` link
+    or a `pdfError` reason. A script lock stops simultaneous submissions from
+    overwriting each other's header changes.
+  - `Code.gs` has a new `doGet` with `find`, `count` and `cleanup` actions.
+    It only works when the `VERIFY_TOKEN` script property is set, which is
+    only on the test copy, and only for `LIVE-SMOKE-*`/`LOADTEST-*` names.
+  - `e2e/live.spec.ts` submits, polls `find`, checks every answer and the
+    Drive PDF (it exists, `%PDF-` header, 10 KB–5 MB), then always cleans up.
+  - `load/verify.mjs` compares the Sheet and Drive counts with k6's
+    confirmed submissions, then cleans up. It runs in `load-test.yml`.
+  - New `live-smoke.yml`: runs on every push to `main`, daily, and manually.
+    It skips with a warning until the secrets exist.
+  - Tested against a local copy of `Code.gs` with fake Sheets/Drive: 14
+    backend checks pass. The live test passes and cleans up. With Drive
+    saving broken on purpose it fails with "the backend reported a PDF save
+    error". `verify.mjs` fails when a submission is missing and passes when
+    all arrived.
 - k6 isn't installed on this laptop yet: `brew install k6` needs
   `sudo xcodebuild -license accept` first.
 
@@ -119,7 +140,9 @@ Add automated QA to the beta survey:
 ## Next steps
 
 1. **Create the test backend** *(manual)*: follow "Test backend" in
-   `google-apps-script/README.md`, then add the GitHub secret `TEST_SHEET_ENDPOINT`.
+   `google-apps-script/README.md`, including the `VERIFY_TOKEN` script
+   property, then add the GitHub secrets `TEST_SHEET_ENDPOINT` and `TEST_VERIFY_TOKEN`.
+   Optionally, redeploy the real script with the new `Code.gs` (no `VERIFY_TOKEN` there).
 2. **Vercel preview setup** *(manual)*: set Preview-only
    `VITE_SHEET_ENDPOINT=https://sheet.test/exec`, enable Protection Bypass for
    Automation, and add the GitHub secret `VERCEL_AUTOMATION_BYPASS_SECRET`.

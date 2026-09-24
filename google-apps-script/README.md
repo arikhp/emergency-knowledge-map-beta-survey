@@ -42,20 +42,38 @@ Drive access added for PDF saving), you'll be prompted to **Authorize
 access** again during that redeploy — same one-click approval as the first
 time, since it's still your own script.
 
-## Test backend (for the load test and live smoke test)
+Each row also has two columns about its PDF: **`pdfFile`** (a link to the
+PDF in Drive) and **`pdfError`** (filled only if saving the PDF failed, with
+the reason). The answers are saved either way.
+
+## Test backend (for the live check and the load test)
 
 Automated tests must never write to the real beta Sheet, so they use a
 separate copy of this backend. One-time setup:
 
 1. Create a second blank spreadsheet, e.g. **"TEST — תשובות שאלון בטא"**.
 2. **Extensions → Apps Script**, paste in [`Code.gs`](./Code.gs), and change
-   the first line to a separate Drive folder:
+   the `PDF_FOLDER_NAME` line to a separate Drive folder:
    `var PDF_FOLDER_NAME = 'TEST - תשובות שאלון בטא - PDF';`
-3. Deploy it as a web app exactly as in step 4 above, and copy its `/exec` URL.
-4. In GitHub → repo **Settings → Secrets and variables → Actions**, add it as
-   **`TEST_SHEET_ENDPOINT`**. It must be a different URL from
-   `SHEET_ENDPOINT`; the load-test workflow refuses to run if they match.
+3. Make up a long random password (e.g. run `openssl rand -hex 24` in a
+   terminal). In the Apps Script editor, open **Project Settings** (gear icon)
+   → **Script Properties** → **Add script property**: name `VERIFY_TOKEN`,
+   value = that password. **Do this only in the TEST script, never in the
+   real one.** It turns on a check-and-cleanup link that the test bots use.
+4. Deploy it as a web app exactly as in step 4 above, and copy its `/exec` URL.
+5. In GitHub → repo **Settings → Secrets and variables → Actions**, add:
+   - **`TEST_SHEET_ENDPOINT`**: the `/exec` URL. It must differ from
+     `SHEET_ENDPOINT`; the workflows refuse to run if they match.
+   - **`TEST_VERIFY_TOKEN`**: the same password as in step 3.
 
-Rows written by tests are easy to spot and delete: the live smoke test uses
-participant name `LIVE-SMOKE-<run id>`, and the load test uses
-`LOADTEST-<run id>-<user>-<iteration>`.
+What the bots do with it: they submit the survey, ask the check link whether
+the row arrived with the right answers and the PDF is in the Drive folder,
+and then delete that row and move the PDF to the Drive trash. The link only
+accepts test names (`LIVE-SMOKE-<run id>`, `LOADTEST-<run id>-…`), so it can
+never read or delete a real participant's answers. In the real script it
+does nothing at all, because `VERIFY_TOKEN` isn't set there.
+
+**Updating the real script too:** paste the new `Code.gs` into the real
+script and redeploy (see "If you ever need to redeploy" above) to get the
+`pdfFile`/`pdfError` columns and the fix for simultaneous submissions.
+Do **not** add `VERIFY_TOKEN` there.

@@ -28,6 +28,9 @@ jobs:
           if [ -z "$TEST_ENDPOINT" ]; then
             echo "::error::TEST_SHEET_ENDPOINT secret is not set (see google-apps-script/README.md)."; exit 1
           fi
+          if [ -z "${{ secrets.TEST_VERIFY_TOKEN }}" ]; then
+            echo "::error::TEST_VERIFY_TOKEN secret is not set (see google-apps-script/README.md)."; exit 1
+          fi
           if [ -n "$PROD_ENDPOINT" ] && [ "$TEST_ENDPOINT" = "$PROD_ENDPOINT" ]; then
             echo "::error::TEST_SHEET_ENDPOINT is the production endpoint. Refusing."; exit 1
           fi
@@ -40,12 +43,14 @@ jobs:
       - run: npm ci
       - run: npx playwright install --with-deps chromium
 
-      # One real browser submission first: proves the full path (form → PDF → Sheet → Drive) works.
+      # One real browser submission first: proves the full path (form → PDF → Sheet → Drive) works,
+      # checks the row and PDF through the test backend, then deletes them.
       - name: Live smoke submission
         run: npx playwright test --project=desktop-chromium
         env:
           LIVE: '1'
           LIVE_ENDPOINT: ${{ secrets.TEST_SHEET_ENDPOINT }}
+          LIVE_VERIFY_TOKEN: ${{ secrets.TEST_VERIFY_TOKEN }}
 
       - uses: grafana/setup-k6-action@v1
       - name: Run k6
@@ -60,12 +65,24 @@ jobs:
             -e HOLD="${{ inputs.hold }}" \
             load/submit.js
 
+      # Counts what actually reached the test Sheet and Drive, compares it with k6, then deletes it.
+      # Runs even if k6's thresholds failed, so test rows never pile up.
+      - name: Check every submission arrived, then clean up
+        if: ${{ !cancelled() && hashFiles('load/results/summary.json') != '' }}
+        run: node load/verify.mjs "$TEST_ENDPOINT" "$VERIFY_TOKEN" "${{ github.run_id }}" | tee load/results/verify.txt
+        env:
+          VERIFY_TOKEN: ${{ secrets.TEST_VERIFY_TOKEN }}
+
       - name: Job summary
         if: ${{ !cancelled() }}
         run: |
           {
             echo "### Load test run ${{ github.run_id }}"
-            echo "Rows are named \`LOADTEST-${{ github.run_id }}-*\` in the test Sheet; the row count should match *iterations* below."
+            echo '#### Did every submission arrive?'
+            echo '```'
+            cat load/results/verify.txt 2>/dev/null || echo "The arrival check did not run"
+            echo '```'
+            echo '#### k6'
             echo '```'
             cat load/results/summary.txt 2>/dev/null || echo "k6 produced no summary"
             echo '```'
