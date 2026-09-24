@@ -103,6 +103,9 @@ Add automated QA to the beta survey:
   `x-vercel-protection-bypass` when `VERCEL_AUTOMATION_BYPASS_SECRET` is set.
   Checked locally against a root-base (`VERCEL=1`) build: 36/36 passed.
   This needs 2 Vercel settings (README → "Survey bots on Vercel previews").
+- **Last-updated date in the footer** ("עודכן לאחרונה"): the build time
+  comes from `define` in `vite.config.ts` and is shown in Israel time. A
+  footer check was added to `a11y-rtl.spec.ts` (now 39 checks).
 - k6 isn't installed on this laptop yet: `brew install k6` needs
   `sudo xcodebuild -license accept` first.
 
