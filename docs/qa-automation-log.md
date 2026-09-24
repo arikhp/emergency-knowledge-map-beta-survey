@@ -139,9 +139,14 @@ Add automated QA to the beta survey:
 
 ## Next steps
 
-1. **Create the test backend** *(manual)*: follow "Test backend" in
-   `google-apps-script/README.md`, including the `VERIFY_TOKEN` script
-   property, then add the GitHub secrets `TEST_SHEET_ENDPOINT` and `TEST_VERIFY_TOKEN`.
+1. ~~**Create the test backend**~~ **Done 2026-09-24** (set up through the
+   browser, with the user doing Google's permission step): Sheet
+   "TEST — תשובות שאלון בטא", Apps Script project "TEST survey backend",
+   Drive folder "TEST - תשובות שאלון בטא - PDF". The GitHub secrets
+   `TEST_SHEET_ENDPOINT` and `TEST_VERIFY_TOKEN` are set. First real live run
+   **passed** in 27 s: every answer was found in the Sheet, a valid PDF was
+   found in Drive, and both were cleaned up (0 rows or files left). Without a
+   password or with a wrong one, requests are refused, and non-test names are refused.
    Optionally, redeploy the real script with the new `Code.gs` (no `VERIFY_TOKEN` there).
 2. **Vercel preview setup** *(manual)*: set Preview-only
    `VITE_SHEET_ENDPOINT=https://sheet.test/exec`, enable Protection Bypass for
