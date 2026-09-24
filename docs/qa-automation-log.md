@@ -130,6 +130,33 @@ Add automated QA to the beta survey:
 - k6 isn't installed on this laptop yet: `brew install k6` needs
   `sudo xcodebuild -license accept` first.
 
+## Load test findings (2026-09-24)
+
+Requirement from the user: **at most 30 participants at once, and each
+submits once.** So the load test is now 30 participants pressing "send" at
+the same instant, one submission each (`ROUNDS` repeats with a fresh group;
+`VUS` above 30 is refused). It passes only if every submission sent is in the
+Sheet with its PDF (`load/verify.mjs`).
+
+| Backend version | Result |
+|---|---|
+| Lock on every submission, 30 s wait (v1) | Sustained 30-user stream: **24 of 190 lost**. The queue exceeded 30 s, `waitLock` threw, and the row was dropped after the PDF was saved. |
+| No lock (v2/v3), which is how the **live production script** works too | **8 of 30 lost, reproducibly, in a single burst.** Every execution was "Completed" and every reply was ok: simultaneous `appendRow` calls silently overwrite each other. |
+| Short lock around header + `appendRow` + `flush` only, up to 4 min wait, write anyway if no lock (v4) | **90 of 90 saved** (3 bursts of 30). Median 2.9 s, but p95 about 33 s, because the last people in a burst wait their turn. |
+
+⚠️ The live production `Code.gs` has the no-lock behaviour, so simultaneous
+submissions there can be silently lost today. Deploying v4 to the real
+script fixes it (without `VERIFY_TOKEN`).
+
+Other findings:
+- Apps Script's reply comes through a redirect that sometimes returns a
+  Google error page or even `doGet`'s output, even though the submission was
+  saved. The real app can't read replies (no-cors), so replies are
+  informational only.
+- Drive's `title contains` matches by word, so file counts now filter by exact name.
+- k6 is run locally from the official release binary (checksum verified),
+  because `brew install k6` needs the Xcode license (sudo).
+
 ## Git state
 
 - `feature/qa-automation` contains all of `main`, plus the 2

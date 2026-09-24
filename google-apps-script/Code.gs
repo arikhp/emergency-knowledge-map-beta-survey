@@ -47,42 +47,48 @@ function doPost(e) {
     }
   }
 
-  // Simultaneous submissions could otherwise overwrite each other's header changes.
+  // Rows must be written one at a time. A load test showed that 30 appendRow
+  // calls at the same instant silently overwrite each other (8 of 30 rows
+  // lost, every execution "Completed"). So each submission holds the lock only
+  // for the few hundred milliseconds it takes to write its row, with the slow
+  // PDF upload already done above, outside the lock. It waits up to 4 minutes
+  // for its turn (30 participants clear in seconds). If it still can't get
+  // the lock, it writes anyway: a small risk of collision beats dropping the
+  // answers for certain.
   var lock = LockService.getScriptLock();
-  lock.waitLock(30000);
+  var locked = lock.tryLock(240000);
   try {
     var sheet = SpreadsheetApp.getActiveSpreadsheet().getActiveSheet();
-    var headers = syncHeaders_(sheet, Object.keys(sheetParams));
+    var headers = ensureHeaders_(sheet, Object.keys(sheetParams));
     var row = headers.map(function (key) {
       return Object.prototype.hasOwnProperty.call(sheetParams, key) ? sheetParams[key] : '';
     });
     sheet.appendRow(row);
-    SpreadsheetApp.flush();
+    SpreadsheetApp.flush(); // commit before the next submission gets the lock
   } finally {
-    lock.releaseLock();
+    if (locked) lock.releaseLock();
   }
 
   return json_({ ok: true });
 }
 
-/** Make sure every key has a column (new ones go at the end); returns the header row. */
-function syncHeaders_(sheet, keys) {
-  var headers = sheet.getLastColumn() > 0
-    ? sheet.getRange(1, 1, 1, sheet.getLastColumn()).getValues()[0]
-    : [];
-  var changed = false;
-  keys.forEach(function (key) {
-    if (headers.indexOf(key) === -1) {
-      headers.push(key);
-      changed = true;
-    }
-  });
-  if (sheet.getLastRow() === 0) {
-    sheet.appendRow(headers);
-  } else if (changed) {
+/** Makes sure every key has a column (new ones go at the end); returns the header row. Call under the lock. */
+function ensureHeaders_(sheet, keys) {
+  var headers = readHeaders_(sheet);
+  var missing = missingKeys_(headers, keys);
+  if (missing.length > 0) {
+    headers = headers.concat(missing);
     sheet.getRange(1, 1, 1, headers.length).setValues([headers]);
   }
   return headers;
+}
+
+function readHeaders_(sheet) {
+  return sheet.getLastColumn() > 0 ? sheet.getRange(1, 1, 1, sheet.getLastColumn()).getValues()[0] : [];
+}
+
+function missingKeys_(headers, keys) {
+  return keys.filter(function (key) { return headers.indexOf(key) === -1; });
 }
 
 /**
@@ -157,15 +163,20 @@ function cleanup_(prefix) {
   var sheet = SpreadsheetApp.getActiveSpreadsheet().getActiveSheet();
   var matches = matchingRows_(prefix);
   var trashed = 0;
-  if (matches.rows.length > 0) {
-    // One rewrite instead of a deleteRow per row: a load test leaves hundreds,
-    // and deleting them one by one can hit Apps Script's time limit.
-    var remove = {};
-    matches.rows.forEach(function (r) { remove[r.rowNumber] = true; });
-    var data = sheet.getDataRange().getValues();
-    var kept = data.filter(function (_, i) { return !remove[i + 1]; });
-    sheet.getDataRange().clearContent();
-    sheet.getRange(1, 1, kept.length, kept[0].length).setValues(kept);
+  // Delete runs of adjacent rows in one call each (a load test leaves hundreds,
+  // mostly adjacent), working bottom-up so row numbers above stay valid.
+  // Submissions only ever append below, so they can't be caught up in this.
+  var numbers = matches.rows.map(function (r) { return r.rowNumber; });
+  var i = numbers.length - 1;
+  while (i >= 0) {
+    var end = numbers[i];
+    var start = end;
+    while (i > 0 && numbers[i - 1] === start - 1) {
+      i--;
+      start--;
+    }
+    sheet.deleteRows(start, end - start + 1);
+    i--;
   }
   // Every Drive file for this run, including any whose row never got written.
   testFilesInDrive_(prefix).forEach(function (file) {
@@ -198,7 +209,12 @@ function testFilesInDrive_(prefix) {
   if (!folders.hasNext()) return files;
   // prefix is validated by TEST_NAME_PATTERN, so it's safe inside the query.
   var it = folders.next().searchFiles("title contains '" + prefix + "' and trashed = false");
-  while (it.hasNext()) files.push(it.next());
+  while (it.hasNext()) {
+    var file = it.next();
+    // Drive's "contains" matches loosely (by word), so LOADTEST-7-1- would also
+    // match LOADTEST-7-10-…; keep only exact substring matches.
+    if (file.getName().indexOf(prefix) !== -1) files.push(file);
+  }
   return files;
 }
 

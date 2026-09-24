@@ -6,14 +6,11 @@ on:
   workflow_dispatch:
     inputs:
       vus:
-        description: Peak concurrent submitters
+        description: Participants submitting at the same instant (max 30, the site's limit)
         default: '30'
-      ramp:
-        description: Ramp-up duration
-        default: 2m
-      hold:
-        description: Time held at peak
-        default: 1m
+      rounds:
+        description: Repeat with a fresh group of participants (each submits once), one minute apart
+        default: '1'
 
 jobs:
   load-test:
@@ -61,8 +58,7 @@ jobs:
             -e PROD_ENDPOINT="$PROD_ENDPOINT" \
             -e RUN_ID="${{ github.run_id }}" \
             -e VUS="${{ inputs.vus }}" \
-            -e RAMP="${{ inputs.ramp }}" \
-            -e HOLD="${{ inputs.hold }}" \
+            -e ROUNDS="${{ inputs.rounds }}" \
             load/submit.js
 
       # Counts what actually reached the test Sheet and Drive, compares it with k6, then deletes it.

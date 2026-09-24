@@ -104,14 +104,19 @@ Locally: `LIVE=1 LIVE_ENDPOINT=<test /exec URL> LIVE_VERIFY_TOKEN=<token> npx pl
 Needs the separate test backend. See the "Test backend" section in
 [`google-apps-script/README.md`](./google-apps-script/README.md).
 
-- **From GitHub:** Actions → **Load test (test Sheet)** → Run workflow. It
-  first makes one real browser submission (`e2e/live.spec.ts`), then ramps
-  k6 up to the chosen number of concurrent submitters (default 30).
-- **Locally:** `k6 run -e ENDPOINT=<test /exec URL> -e VUS=5 load/submit.js`
+The site serves at most **30 participants at once, and each submits once**.
+So the test is the worst realistic moment: 30 participants all press
+"send" at the same instant, one submission each (with a real ~400 KB PDF).
+The `rounds` option repeats this with a fresh group of 30 for extra
+confidence, and `vus` can't go above 30.
 
-It passes if fewer than 2% of requests fail and 95% of submissions finish
-within 15 s. Then `load/verify.mjs` asks the test backend how many
-`LOADTEST-<run id>-*` rows and PDFs actually arrived, and fails if any
-confirmed submission or its PDF is missing. Then it deletes them. The
-counts are shown in the run's summary. Locally:
-`node load/verify.mjs <test /exec URL> <token> <run id>` (add `KEEP=1` to keep the rows).
+- **From GitHub:** Actions → **Load test (test Sheet)** → Run workflow. It
+  first makes one real browser submission (`e2e/live.spec.ts`), then sends
+  the burst.
+- **Locally:** `k6 run -e ENDPOINT=<test /exec URL> load/submit.js` (add `-e VUS=5` for a small trial)
+
+Then `load/verify.mjs` asks the test backend how many `LOADTEST-<run id>-*`
+rows and PDFs arrived. **It passes only if every submission sent is in
+the Sheet with its PDF.** Then it deletes them, and the counts appear in the
+run's summary. k6 also requires that 95% of submissions finish within 15 s.
+Locally: `node load/verify.mjs <test /exec URL> <token> <run id>` (add `KEEP=1` to keep the rows).
