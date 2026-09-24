@@ -4,30 +4,30 @@
 // every flattened field (src/lib/flatten.ts) plus a real ~400 KB PDF as base64.
 // Point it ONLY at the test deployment, never the production Sheet.
 //
-// The site serves at most 30 participants at once, and each submits once at
-// the end of a ~45-60 minute session. So the test is the worst realistic case:
-// VUS participants (default 30) each submit ONCE, all at the same instant.
-// ROUNDS (default 1) repeats that with a fresh group of participants, GAP
-// seconds apart (default 60), for extra confidence; nobody submits twice.
+// The site has 30 participants in total and they take it ONE AT A TIME,
+// each submitting once at the end of a ~45-60 minute session. So by default
+// this sends PARTICIPANTS (default 30) submissions one after another, and
+// load/verify.mjs then checks that every one is in the Sheet with its PDF.
+// AT_ONCE (default 1, max 30) lets several participants submit at the same
+// time, as an optional stress check beyond the expected use.
 //
 //   k6 run -e ENDPOINT=<test web app URL> load/submit.js
-//   k6 run -e ENDPOINT=... -e VUS=5 load/submit.js
+//   k6 run -e ENDPOINT=... -e PARTICIPANTS=5 load/submit.js
 //
-// Every row it writes has participantName LOADTEST-<runId>-<vu>-<round>, so
+// Every row it writes has participantName LOADTEST-<runId>-<n>, so
 // load/verify.mjs can count them afterwards and delete them.
 import http from 'k6/http';
 import encoding from 'k6/encoding';
 import exec from 'k6/execution';
-import { check, sleep } from 'k6';
+import { check } from 'k6';
 import { textSummary } from 'https://jslib.k6.io/k6-summary/0.1.0/index.js';
 
 const ENDPOINT = __ENV.ENDPOINT;
 const RUN_ID = __ENV.RUN_ID || `local-${Date.now()}`;
-const VUS = Number(__ENV.VUS || 30);
-const ROUNDS = Number(__ENV.ROUNDS || 1);
-const GAP_SECONDS = Number(__ENV.GAP || 60);
-if (VUS > 30) {
-  throw new Error('The site serves at most 30 participants at once; VUS above 30 is not a realistic test.');
+const PARTICIPANTS = Number(__ENV.PARTICIPANTS || 30);
+const AT_ONCE = Number(__ENV.AT_ONCE || 1);
+if (AT_ONCE < 1 || AT_ONCE > 30 || AT_ONCE > PARTICIPANTS) {
+  throw new Error('AT_ONCE must be between 1 and 30, and not more than PARTICIPANTS.');
 }
 
 if (!ENDPOINT) {
@@ -47,11 +47,12 @@ const OPEN_IDS = Array.from({ length: 9 }, (_, i) => `open${i + 1}`);
 
 export const options = {
   scenarios: {
-    bursts: {
-      executor: 'per-vu-iterations',
-      vus: VUS,
-      iterations: ROUNDS,
-      maxDuration: `${ROUNDS * GAP_SECONDS + 120}s`,
+    participants: {
+      // Each iteration is one participant's single submission.
+      executor: 'shared-iterations',
+      vus: AT_ONCE,
+      iterations: PARTICIPANTS,
+      maxDuration: '20m',
     },
   },
   thresholds: {
@@ -70,7 +71,7 @@ export const options = {
 const rand = (min, max) => min + Math.floor(Math.random() * (max - min + 1));
 
 function buildSubmission() {
-  const name = `LOADTEST-${RUN_ID}-${exec.vu.idInTest}-${exec.vu.iterationInScenario}`;
+  const name = `LOADTEST-${RUN_ID}-${exec.scenario.iterationInTest + 1}`;
   const body = {
     timestamp: new Date().toISOString(),
     participantName: name,
@@ -96,12 +97,6 @@ function buildSubmission() {
 }
 
 export default function () {
-  // Line every participant up on the same instant for this round.
-  const round = exec.vu.iterationInScenario;
-  const roundStart = exec.scenario.startTime + round * GAP_SECONDS * 1000;
-  const wait = (roundStart - Date.now()) / 1000;
-  if (wait > 0) sleep(wait);
-
   // Apps Script replies 302 → script.googleusercontent.com; k6 follows it, and
   // the row + Drive file are written before that redirect is issued.
   const res = http.post(ENDPOINT, buildSubmission(), {

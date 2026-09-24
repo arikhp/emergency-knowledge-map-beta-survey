@@ -104,16 +104,16 @@ Locally: `LIVE=1 LIVE_ENDPOINT=<test /exec URL> LIVE_VERIFY_TOKEN=<token> npx pl
 Needs the separate test backend. See the "Test backend" section in
 [`google-apps-script/README.md`](./google-apps-script/README.md).
 
-The site serves at most **30 participants at once, and each submits once**.
-So the test is the worst realistic moment: 30 participants all press
-"send" at the same instant, one submission each (with a real ~400 KB PDF).
-The `rounds` option repeats this with a fresh group of 30 for extra
-confidence, and `vus` can't go above 30.
+The site has **30 participants in total, one at a time, and each submits
+once**. So by default the test sends 30 submissions one after another
+(each with a real ~400 KB PDF), matching a full round of the beta. The
+`at_once` option (1–30) lets several submit at the same moment, as an
+optional stress check beyond the expected use.
 
 - **From GitHub:** Actions → **Load test (test Sheet)** → Run workflow. It
   first makes one real browser submission (`e2e/live.spec.ts`), then sends
-  the burst.
-- **Locally:** `k6 run -e ENDPOINT=<test /exec URL> load/submit.js` (add `-e VUS=5` for a small trial)
+  the 30 submissions.
+- **Locally:** `k6 run -e ENDPOINT=<test /exec URL> load/submit.js` (add `-e PARTICIPANTS=5` for a small trial)
 
 Then `load/verify.mjs` asks the test backend how many `LOADTEST-<run id>-*`
 rows and PDFs arrived. **It passes only if every submission sent is in

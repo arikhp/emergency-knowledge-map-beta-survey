@@ -5,11 +5,11 @@ name: Load test (test Sheet)
 on:
   workflow_dispatch:
     inputs:
-      vus:
-        description: Participants submitting at the same instant (max 30, the site's limit)
+      participants:
+        description: How many participants submit (each once). Expected total is 30
         default: '30'
-      rounds:
-        description: Repeat with a fresh group of participants (each submits once), one minute apart
+      at_once:
+        description: How many submit at the same time (1 = one at a time, which is the expected use; max 30)
         default: '1'
 
 jobs:
@@ -57,8 +57,8 @@ jobs:
             -e ENDPOINT="$TEST_ENDPOINT" \
             -e PROD_ENDPOINT="$PROD_ENDPOINT" \
             -e RUN_ID="${{ github.run_id }}" \
-            -e VUS="${{ inputs.vus }}" \
-            -e ROUNDS="${{ inputs.rounds }}" \
+            -e PARTICIPANTS="${{ inputs.participants }}" \
+            -e AT_ONCE="${{ inputs.at_once }}" \
             load/submit.js
 
       # Counts what actually reached the test Sheet and Drive, compares it with k6, then deletes it.

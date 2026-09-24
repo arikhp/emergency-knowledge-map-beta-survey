@@ -132,11 +132,20 @@ Add automated QA to the beta survey:
 
 ## Load test findings (2026-09-24)
 
-Requirement from the user: **at most 30 participants at once, and each
-submits once.** So the load test is now 30 participants pressing "send" at
-the same instant, one submission each (`ROUNDS` repeats with a fresh group;
-`VUS` above 30 is refused). It passes only if every submission sent is in the
-Sheet with its PDF (`load/verify.mjs`).
+Requirement from the user (final): **30 participants in total, one at a
+time, and each submits once.** So the default load test sends 30
+submissions one after another. `AT_ONCE` (1–30, default 1) is an optional
+stress check. It passes only if every submission sent is in the Sheet with its
+PDF (`load/verify.mjs`).
+
+**Result on backend v4, 30 one at a time: 30 of 30 saved with PDFs.** Median
+5.2 s, p95 7.1 s, 0 failed requests.
+
+The simultaneous-burst results below came from an earlier, stricter
+assumption (30 at the same instant). They're kept for the record. The user
+confirmed there is only ever one participant at a time, so the live
+production script (no lock) is fine as it is, and the user chose not to
+update it. The v4 lock stays in the repo's `Code.gs` as cheap insurance.
 
 | Backend version | Result |
 |---|---|
@@ -144,9 +153,10 @@ Sheet with its PDF (`load/verify.mjs`).
 | No lock (v2/v3), which is how the **live production script** works too | **8 of 30 lost, reproducibly, in a single burst.** Every execution was "Completed" and every reply was ok: simultaneous `appendRow` calls silently overwrite each other. |
 | Short lock around header + `appendRow` + `flush` only, up to 4 min wait, write anyway if no lock (v4) | **90 of 90 saved** (3 bursts of 30). Median 2.9 s, but p95 about 33 s, because the last people in a burst wait their turn. |
 
-⚠️ The live production `Code.gs` has the no-lock behaviour, so simultaneous
-submissions there can be silently lost today. Deploying v4 to the real
-script fixes it (without `VERIFY_TOKEN`).
+Note: the live production `Code.gs` has the no-lock behaviour, so it would
+lose rows only if several participants submitted at the same instant. That's
+not expected (one at a time). If that ever changes, deploy v4 to the real
+script (without `VERIFY_TOKEN`).
 
 Other findings:
 - Apps Script's reply comes through a redirect that sometimes returns a
