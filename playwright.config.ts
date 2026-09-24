@@ -17,7 +17,8 @@ export default defineConfig({
   testDir: './e2e',
   fullyParallel: true,
   // PDF rendering is CPU-heavy; too many parallel browsers starve each other.
-  workers: process.env.CI ? 2 : 4,
+  // 2 is both stable and fastest locally; 4 caused timeouts in submit/PDF tests.
+  workers: 2,
   forbidOnly: !!process.env.CI,
   retries: process.env.CI ? 1 : 0,
   reporter: process.env.CI ? [['github'], ['html', { open: 'never' }]] : [['list'], ['html', { open: 'never' }]],
